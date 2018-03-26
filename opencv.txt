@@ -1,0 +1,274 @@
+Tratto dal sito:
+https://www.pyimagesearch.com/2017/09/04/raspbian-stretch-install-opencv-3-python-on-your-raspberry-pi/
+
+
+Step #1: Expand filesystem
+Are you using a brand new install of Raspbian Stretch?
+
+If so, the first thing you should do is expand your filesystem to include all available space on your micro-SD card:
+
+$ sudo raspi-config
+And then select the "Advanced Options" menu item:
+Followed by selecting "Expand filesystem":
+Once prompted, you should select the first option, "A1. Expand File System", hit Enter on your keyboard, arrow down to the "<Finish>" button, and then reboot your Pi -- you may be prompted to reboot, but if you aren't you can execute:
+
+$ sudo reboot
+
+After rebooting, your file system should have been expanded to include all available space on your micro-SD card. You can verify that the disk has been expanded by executing df -h and examining the output:
+
+$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/root        30G  4.2G   24G  15% /
+devtmpfs        434M     0  434M   0% /dev
+tmpfs           438M     0  438M   0% /dev/shm
+tmpfs           438M   12M  427M   3% /run
+tmpfs           5.0M  4.0K  5.0M   1% /run/lock
+tmpfs           438M     0  438M   0% /sys/fs/cgroup
+/dev/mmcblk0p1   42M   21M   21M  51% /boot
+tmpfs            88M     0   88M   0% /run/user/1000
+
+As you can see, my Raspbian filesystem has been expanded to include all 32GB of the micro-SD card.
+
+However, even with my filesystem expanded, I have already used 15% of my 32GB card.
+
+If you are using an 8GB card you may be using close to 50% of the available space, so one simple thing to do is to delete both LibreOffice and Wolfram engine to free up some space on your Pi:
+
+$ sudo apt-get purge wolfram-engine
+$ sudo apt-get purge libreoffice*
+$ sudo apt-get clean
+$ sudo apt-get autoremove
+
+After removing the Wolfram Engine and LibreOffice, you can reclaim almost 1GB!
+
+Step #2: Install dependencies
+This isn't the first time I've discussed how to install OpenCV on the Raspberry Pi, so I'll keep these instructions on the briefer side, allowing you to work through the installation process: I've also included the amount of time it takes to execute each command (some depend on your Internet speed) so you can plan your OpenCV + Raspberry Pi 3 install accordingly (OpenCV itself takes approximately 4 hours to compile -- more on this later).
+
+The first step is to update and upgrade any existing packages:
+
+$ sudo apt-get update && sudo apt-get upgrade
+
+We then need to install some developer tools, including CMake, which helps us configure the OpenCV build process:
+
+$ sudo apt-get install build-essential cmake pkg-config
+
+Next, we need to install some image I/O packages that allow us to load various image file formats from disk. Examples of such file formats include JPEG, PNG, TIFF, etc.:
+
+$ sudo apt-get install libjpeg-dev libtiff5-dev libjasper-dev libpng12-dev
+
+Just as we need image I/O packages, we also need video I/O packages. These libraries allow us to read various video file formats from disk as well as work directly with video streams:
+
+$ sudo apt-get install libavcodec-dev libavformat-dev libswscale-dev libv4l-dev
+$ sudo apt-get install libxvidcore-dev libx264-dev
+
+The OpenCV library comes with a sub-module named highgui which is used to display images to our screen and build basic GUIs. In order to compile the highgui module, we need to install the GTK development library:
+
+$ sudo apt-get install libgtk2.0-dev libgtk-3-dev
+
+Many operations inside of OpenCV (namely matrix operations) can be optimized further by installing a few extra dependencies:
+
+$ sudo apt-get install libatlas-base-dev gfortran
+
+These optimization libraries are especially important for resource constrained devices such as the Raspberry Pi.
+
+Lastly, let's install both the Python 2.7 and Python 3 header files so we can compile OpenCV with Python bindings:
+
+$ sudo apt-get install python2.7-dev python3-dev
+
+If you're working with a fresh install of the OS, it is possible that these versions of Python are already at the newest version (you'll see a terminal message stating this).
+
+If you skip this step, you may notice an error related to the Python.h header file not being found when running make to compile OpenCV.
+
+Step #3: Download the OpenCV source code
+Now that we have our dependencies installed, let's grab the 3.3.0 archive of OpenCV from the official OpenCV repository. This version includes the dnn  module which we discussed in a previous post where we did Deep Learning with OpenCV (Note: As future versions of openCV are released, you can replace 3.3.0 with the latest version number):
+
+$ cd ~
+$ wget -O opencv.zip https://github.com/Itseez/opencv/archive/3.3.0.zip
+$ unzip opencv.zip
+
+We'll want the full install of OpenCV 3 (to have access to features such as SIFT and SURF, for instance), so we also need to grab the opencv_contrib repository as well:
+
+$ wget -O opencv_contrib.zip https://github.com/Itseez/opencv_contrib/archive/3.3.0.zip
+$ unzip opencv_contrib.zip
+
+You might need to expand the command above using the "<=>" button during your copy and paste. The .zip in the 3.3.0.zip may appear to be cutoff in some browsers. The full URL of the OpenCV 3.3.0 archive is:
+
+https://github.com/Itseez/opencv_contrib/archive/3.3.0.zip
+
+Note: Make sure your opencv and opencv_contrib versions are the same (in this case, 3.3.0). If the versions numbers do not match up, then you'll likely run into either compile-time or runtime errors.
+
+Step #4: Python 2.7 or Python 3?
+Before we can start compiling OpenCV on our Raspberry Pi 3, we first need to install pip , a Python package manager:
+
+$ wget https://bootstrap.pypa.io/get-pip.py
+$ sudo python get-pip.py
+$ sudo python3 get-pip.py
+
+You may get a message that pip is already up to date when issuing these commands, but it is best not to skip this step.
+
+If you're a longtime PyImageSearch reader, then you'll know that I'm a huge fan of both virtualenv and virtualenvwrapper. Installing these packages is not a requirement and you can absolutely get OpenCV installed without them, but that said, I highly recommend you install them as other existing PyImageSearch tutorials (as well as future tutorials) also leverage Python virtual environments. I'll also be assuming that you have both virtualenv and virtualenvwrapper installed throughout the remainder of this guide.
+
+So, given that, what's the point of using virtualenv and virtualenvwrapper ?
+
+First, it's important to understand that a virtual environment is a special tool used to keep the dependencies required by different projects in separate places by creating isolated, independent Python environments for each of them.
+
+In short, it solves the "Project X depends on version 1.x, but Project Y needs 4.x" dilemma. It also keeps your global site-packages neat, tidy, and free from clutter.
+
+If you would like a full explanation on why Python virtual environments are good practice, absolutely give this excellent blog post on RealPython a read.
+
+It's standard practice in the Python community to be using virtual environments of some sort, so I highly recommend that you do the same:
+
+$ sudo pip install virtualenv virtualenvwrapper
+$ sudo rm -rf ~/.cache/pip
+
+Now that both virtualenv and virtualenvwrapper have been installed, we need to update our ~/.profile file to include the following lines at the bottom of the file:
+
+# virtualenv and virtualenvwrapper
+export WORKON_HOME=$HOME/.virtualenvs
+source /usr/local/bin/virtualenvwrapper.sh
+
+In previous tutorials, I've recommended using your favorite terminal-based text editor such as vim , emacs , or nano to update the ~/.profile file. If you're comfortable with these editors, go ahead and update the file to reflect the changes mentioned above.
+
+Now that we have our ~/.profile updated, we need to reload it to make sure the changes take affect. You can force a reload of your ~/.profile file by:
+
+$ source ~/.profile
+Note: I recommend running the source ~/.profile file each time you open up a new terminal to ensure your system variables have been setup correctly.
+
+Creating your Python virtual environment
+Next, let's create the Python virtual environment that we'll use for computer vision development:
+
+$ mkvirtualenv cv -p python3
+
+Again, I can't stress this point enough: the cv Python virtual environment is entirely independent and sequestered from the default Python version included in the download of Raspbian Stretch. Any Python packages in the global site-packages directory will not be available to the cv virtual environment. Similarly, any Python packages installed in site-packages of cv will not be available to the global install of Python. Keep this in mind when you're working in your Python virtual environment and it will help avoid a lot of confusion and headaches.
+
+How to check if you're in the "cv" virtual environment
+If you ever reboot your Raspberry Pi; log out and log back in; or open up a new terminal, you'll need to use the workon command to re-access the cv virtual environment. In previous blog posts, I've seen readers use the mkvirtualenv command -- this is entirely unneeded! The mkvirtualenv command is meant to be executed only once: to actually create the virtual environment.
+
+After that, you can use workon and you'll be dropped down into your virtual environment:
+
+$ source ~/.profile
+$ workon cv
+
+To validate and ensure you are in the cv virtual environment, examine your command line -- if you see the text (cv) preceding your prompt, then you are in the cv virtual environment.
+Otherwise, if you do not see the (cv) text, then you are not in the cv virtual environment:
+
+Installing NumPy on your Raspberry Pi
+Assuming you've made it this far, you should now be in the cv virtual environment (which you should stay in for the rest of this tutorial). Our only Python dependency is NumPy, a Python package used for numerical processing:
+
+$ pip install numpy
+Be sure to grab a cup of coffee or go for a nice walk, the NumPy installation can take a bit of time.
+
+Note: A question I've often seen is "Help, my NumPy installation has hung and it's not installing!" Actually, it is installing, it just takes time to pull down the sources and compile. You can verify that NumPy is compiling and installing by running top . Here you'll see that your CPU cycles are being used compiling NumPy. Be patient. The Raspberry Pi isn't as fast as your laptop/desktop.
+
+Step #5: Compile and Install OpenCV
+We are now ready to compile and install OpenCV! Double-check that you are in the cv virtual environment by examining your prompt (you should see the (cv) text preceding it), and if not, simply execute workon :
+
+$ workon cv
+Once you have ensured you are in the cv virtual environment, we can setup our build using CMake:
+
+$ cd ~/opencv-3.3.0/
+$ mkdir build
+$ cd build
+$ cmake -D CMAKE_BUILD_TYPE=RELEASE \
+    -D CMAKE_INSTALL_PREFIX=/usr/local \
+    -D INSTALL_PYTHON_EXAMPLES=ON \
+    -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib-3.3.0/modules \
+    -D BUILD_EXAMPLES=ON 
+    -D BUILD_opencv_python3=yes ..
+
+Now, before we move on to the actual compilation step, make sure you examine the output of CMake!
+
+If you are compiling OpenCV 3 for Python 3, then make sure your Python 2 section includes valid paths to the Interpreter , Libraries , numpy and packages path , similar to my screenshot below:
+
+Similarly, if you're compiling OpenCV for Python 3, make sure the Python 3 section looks like the figure below:
+
+The Interpreter points to our python3.5 binary located in the cv virtual environment while numpy points to our NumPy install.
+
+In either case, if you do not see the cv virtual environment in these variables paths, it's almost certainly because you are NOT in the cv virtual environment prior to running CMake!
+
+If this is the case, access the cv virtual environment using workon cv and re-run the cmake command outlined above.
+
+Configure your swap space size before compiling
+Before you start the compile process, you should increase your swap space size. This enables OpenCV to compile with all four cores of the Raspberry PI without the compile hanging due to memory problems.
+
+Open your /etc/dphys-swapfile  and then edit the CONF_SWAPSIZE  variable:
+
+# set size to absolute value, leaving empty (default) then uses computed value
+#   you most likely don't want this, unless you have an special disk situation
+# CONF_SWAPSIZE=100
+CONF_SWAPSIZE=1024
+Notice that I've commented out the 100MB line and added a 1024MB line. This is the secret to getting compiling with multiple cores on the Raspbian Stretch.
+
+If you skip this step, OpenCV might not compile.
+
+To activate the new swap space, restart the swap service:
+
+$ sudo /etc/init.d/dphys-swapfile stop
+$ sudo /etc/init.d/dphys-swapfile start
+Note: It is possible to burn out the Raspberry Pi microSD card because flash memory has a limited number of writes until the card won't work. It is highly recommended that you change this setting back to the default when you are done compiling and testing the install (see below). To read more about swap sizes corrupting memory, see this page.
+
+Finally, we are now ready to compile OpenCV:
+
+$ make -j4
+
+Once OpenCV 3 has finished compiling, your output should look similar to mine below:
+
+$ sudo make install
+$ sudo ldconfig
+
+Step #6: Finish installing OpenCV on your Pi
+We're almost done -- just a few more steps to go and you'll be ready to use your Raspberry Pi 3 with OpenCV 3 on Raspbian Stretch.
+
+For Python 3:
+After running make install , your OpenCV + Python bindings should be installed in /usr/local/lib/python3.5/site-packages . Again, you can verify this with the ls command:
+
+$ ls -l /usr/local/lib/python3.5/site-packages/
+total 1852
+-rw-r--r-- 1 root staff 1895932 Mar 20 21:51 cv2.cpython-34m.so
+I honestly don't know why, perhaps it's a bug in the CMake script, but when compiling OpenCV 3 bindings for Python 3+, the output .so file is named cv2.cpython-35m-arm-linux-gnueabihf.so (or some variant of) rather than simply cv2.so (like in the Python 2.7 bindings).
+
+Again, I'm not sure exactly why this happens, but it's an easy fix. All we need to do is rename the file:
+
+$ cd /usr/local/lib/python3.5/site-packages/
+$ sudo mv cv2.cpython-35m-arm-linux-gnueabihf.so cv2.so
+After renaming to cv2.so , we can sym-link our OpenCV bindings into the cv virtual environment for Python 3.5:
+
+$ cd ~/.virtualenvs/cv/lib/python3.5/site-packages/
+$ ln -s /usr/local/lib/python3.5/site-packages/cv2.so cv2.so
+
+Step #7: Testing your OpenCV 3 install
+Congratulations, you now have OpenCV 3 installed on your Raspberry Pi 3 running Raspbian Stretch!
+
+But before we pop the champagne and get drunk on our victory, let's first verify that your OpenCV installation is working properly.
+
+Open up a new terminal, execute the source and workon commands, and then finally attempt to import the Python + OpenCV bindings:
+
+$ source ~/.profile 
+$ workon cv
+$ python
+>>> import cv2
+>>> cv2.__version__
+'3.3.0'
+>>>
+As you can see from the screenshot of my own terminal, OpenCV 3 has been successfully installed on my Raspberry Pi 3 + Python 3.5 environment:
+
+Once OpenCV has been installed, you can remove both the opencv-3.3.0 and opencv_contrib-3.3.0 directories to free up a bunch of space on your disk:
+
+$ rm -rf opencv-3.3.0 opencv_contrib-3.3.0
+However, be cautious with this command! Make sure OpenCV has been properly installed on your system before blowing away these directories. A mistake here could cost you hours in compile time.
+
+Don't forget to change your swap size back!
+Open your  /etc/dphys-swapfile  and then edit the  CONF_SWAPSIZE  variable:
+
+# set size to absolute value, leaving empty (default) then uses computed value
+#   you most likely don't want this, unless you have an special disk situation
+CONF_SWAPSIZE=100
+# CONF_SWAPSIZE=1024
+Notice that I've commented out the 1024MB line and uncommented the 100MB line.
+
+If you skip this step, your memory card won't last as long. As stated above, larger swap spaces may lead to memory corruption, so I recommend setting it back to 100MB.
+
+To revert to the smaller swap space, restart the swap service:
+
+$ sudo /etc/init.d/dphys-swapfile stop
+$ sudo /etc/init.d/dphys-swapfile start
+

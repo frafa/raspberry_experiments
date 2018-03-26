@@ -1,0 +1,82 @@
+Tratto da:
+https://pimylifeup.com/raspberry-pi-webcam-server/
+
+sudo apt-get update
+sudo apt-get upgrade
+
+We start by removing libraries that may conflict with the newer packages. These may or may not already exist on your copy of Raspbian.
+
+sudo apt-get remove libavcodec-extra-56 libavformat56 libavresample2 libavutil54
+
+Download and install the following packages by inserting the following commands into the terminal.
+
+wget https://github.com/ccrisan/motioneye/wiki/precompiled/ffmpeg_3.1.1-1_armhf.deb
+sudo dpkg -i ffmpeg_3.1.1-1_armhf.deb
+
+Now we need to install the following packages. We will need these as the Motion software relies on them.
+
+sudo apt-get install curl libssl-dev libcurl4-openssl-dev libjpeg-dev libx264-142 libavcodec56 libavformat56 libmysqlclient18 libswscale3 libpq5
+
+With those packages installed we can now grab the latest version of the motion software and install it. To do this run the following commands
+
+wget https://github.com/Motion-Project/motion/releases/download/release-4.0.1/pi_jessie_motion_4.0.1-1_armhf.deb
+sudo dpkg -i pi_jessie_motion_4.0.1-1_armhf.deb
+
+- Raspbian Stretch
+First, install the following packages. This command will work both on the full and lite version of Raspbian Stretch.
+
+sudo apt-get install libmariadbclient18 libpq5 libavcodec57  libavformat57 libavutil55 libswscale4
+
+Next, download the Motion deb file from the GitHub and install it using the dpkg command.
+
+sudo wget https://github.com/Motion-Project/motion/releases/download/release-4.0.1/pi_stretch_motion_4.0.1-1_armhf.deb
+sudo dpkg -i pi_stretch_motion_4.0.1-1_armhf.deb
+
+That's all you need to do before moving on to configuring Motion so that it will run on your Pi.
+
+- Configuring Motion
+1. Now we need to make some edits to the configuration file (motion.conf)
+
+sudo nano /etc/motion/motion.conf
+
+2. Find the following lines and change them to the following.
+
+daemon on
+stream_localhost off
+Note: Change the following two lines from on to off if you're having issues with the stream freezing whenever motion occurs.
+
+output_pictures off
+ffmpeg_output_movies off
+Optional (Don't include the text in brackets)
+
+stream_maxrate 100 (This will allow for real-time streaming but requires more bandwidth & resources)
+framerate 100 (This will allow for 100 frames to be captured per second allowing for smoother video)
+width 640 (This changes the width of the image displayed)
+height 480 (This changes the height of the image displayed)
+
+3. Now we need to setup up the daemon. First, we need to edit the motion file.
+
+sudo nano /etc/default/motion
+
+4. Find the following line and change it to the following:
+
+start_motion_daemon=yes
+
+5. Once you're done, simply save and exit by pressing ctrl+x then y.
+
+6. Now make sure the camera is connected and run the following line:
+
+sudo service motion start
+
+7. If you need to stop the service, simply run the following command:
+
+sudo service motion stop
+8. Now you should be able to check out the Webcam Stream at the IP address of our Pi so in your browser go to the following address:
+
+192.168.1.103:8081
+
+9. If the webpage isn't loading, try restarting the service.
+
+sudo service motion restart
+
+

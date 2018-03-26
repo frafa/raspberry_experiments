@@ -1,0 +1,60 @@
+Install influxdb
+
+wget https://dl.influxdata.com/influxdb/releases/influxdb-1.5.0_linux_armhf.tar.gz
+tar xvfz influxdb-1.5.0_linux_armhf.tar.gz
+
+cd influxdb-1.5.0-1 
+sudo cp -rp usr/* /usr
+sudo cp -rp etc/* /etc
+sudo cp -rp var/* /var
+
+in the /etc/systemd/system directory create influxdb.service 
+
+[root@localhost system] sudo nano influxdb.service
+
+[Unit]
+Description=InlfuxDB service
+[Service]
+ExecStart=/usr/bin/influxd
+NotifyAccess=main
+#WatchdogSec=10
+Restart=on-failure
+LimitNPROC=1
+ProtectHome=true
+ProtectSystem=full
+
+
+start dei servizi:
+systemctl enable influxdb.service
+systemctl start influxdb.service
+
+
+per verificare se il servizio è partito:
+systemctl
+
+
+installare la libreria python per usare influxdb
+sudo pip install influxdb
+
+CREAZIONE DI UN DB
+
+curl -i -XPOST http://localhost:8086/query --data-urlencode "q=CREATE DATABASE testdb"
+
+LA SCRITTURA SUL DB AVVIENE VIA SECONDO LA SINTASSI:
+
+<measurement>[,<tag-key>=<tag-value>...] <field-key>=<field-value>[,<field2-key>=<field2-value>...] [unix-nano-timestamp]
+
+es.
+> CREATE DATABASE testdb
+> USE testdb 
+> INSERT luminosita,sensore=ldr, value=1000
+
+> select * from luminosita
+name: luminosita
+time                           sensore value
+----                           ------- -----
+2018-03-14T22:52:19.493323101Z ldr     1000
+
+> delete from luminosita
+> DROP DATABASE testdb
+
